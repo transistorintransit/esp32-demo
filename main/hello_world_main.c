@@ -10,19 +10,22 @@
 #include <time.h>
 #include <sys/time.h>
 #include "esp_sleep.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "esp_timer.h"
 #include "esp_system.h"
 #include "esp_spi_flash.h"
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "soc/rtc.h"
 #include "driver/rtc_io.h"
 
 #define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP  3        /* Time ESP32 will go to sleep (in seconds) */
 
-
-
 static RTC_DATA_ATTR struct timeval sleep_enter_time;
+static bool active_mode;
+static void active_timer_callback(void* arg);
+static const char* TAG = "example";
 
 void app_main()
 {
@@ -51,6 +54,22 @@ void app_main()
         printf("Wake up from timer. Time spent in deep sleep: %dms\n", sleep_time_ms);
     }
 
+    //Create timer config stuff
+    const esp_timer_create_args_t active_timer_args = {
+            .callback = &active_timer_callback,
+            /* argument specified here will be passed to timer callback function */
+            .name = "active-timer"
+    };
+    esp_timer_handle_t active_timer;
+    ESP_ERROR_CHECK(esp_timer_create(&active_timer_args, &active_timer));
+
+    const int active_time_sec = 120;
+
+    /* Start the timers */
+    ESP_ERROR_CHECK(esp_timer_start_once(active_timer, active_time_sec*uS_TO_S_FACTOR));
+    ESP_LOGI(TAG, "Started timer, time since boot: %lld us", esp_timer_get_time());
+
+
     /* Blink LED */
 
     /* Turn on LED */
@@ -60,6 +79,13 @@ void app_main()
     /* Loop and wait for GET Requests on '/configure_blink' */
     //look for the 'num' url request header
 
+    active_mode = true;
+    while(active_mode){
+
+        printf("Awake and hanging out\n");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+    }
 
 
 
@@ -69,9 +95,9 @@ void app_main()
     /* Shutdown  */
     rtc_gpio_isolate(GPIO_NUM_12); //turn off GPIO12 to minimize current consumption
 
-    const int wakeup_time_sec = 20;
+    const int wakeup_time_sec = 60;
     printf("Enabling timer wakeup, %ds\n", wakeup_time_sec);
-    esp_sleep_enable_timer_wakeup(wakeup_time_sec * 1000000);
+    esp_sleep_enable_timer_wakeup(wakeup_time_sec * uS_TO_S_FACTOR);
     
 
     for (int i = 10; i >= 0; i--) {
@@ -84,3 +110,6 @@ void app_main()
 
 }
 
+static void active_timer_callback(void* arg){
+    active_mode = false;
+}
