@@ -20,11 +20,6 @@
 #include "lwip/sys.h"
 #include "nvs_driver.h"
 
-/* The examples use WiFi configuration that you can set via 'make menuconfig'.
-
-   If you'd rather not, just change the below entries to strings with
-   the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
-*/
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
@@ -48,18 +43,12 @@ esp_err_t blink_get_handler(httpd_req_t *req)
             char param[32];
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "num", param, sizeof(param)) == ESP_OK) {
-                ESP_LOGI(TAG, "Found URL query parameter => num_test=%s", param);
                 char buf_num_stored[buf_len];
                 strcpy(buf_num_stored,param);
                 num_blink = atoi(buf_num_stored);
                 ESP_LOGI(TAG, "Integer version => num: %d", num_blink);
             }
-            if (httpd_query_key_value(buf, "query3", param, sizeof(param)) == ESP_OK) {
-                ESP_LOGI(TAG, "Found URL query parameter => query3=%s", param);
-            }
-            if (httpd_query_key_value(buf, "query2", param, sizeof(param)) == ESP_OK) {
-                ESP_LOGI(TAG, "Found URL query parameter => query2=%s", param);
-            }
+            
         }
         free(buf);
     }
@@ -67,7 +56,7 @@ esp_err_t blink_get_handler(httpd_req_t *req)
     //Set the number of blinks in NVS
     nvs_write(num_blink);
 
-    /* Set some custom headers */
+    /* Set a header to confirm that we're parsing the request correctly */
     char s[] = {'0' + num_blink, '\0'};
     httpd_resp_set_hdr(req, "Number_of_Blinks", s);
 
