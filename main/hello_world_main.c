@@ -19,9 +19,11 @@
 #include "soc/rtc.h"
 #include "driver/rtc_io.h"
 
+
+#define GPIO_OUTPUT_LED    2
 #define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP  3        /* Time ESP32 will go to sleep (in seconds) */
-
+#define GPIO_OUTPUT_PIN_SEL (1ULL<<GPIO_OUTPUT_LED)
 static RTC_DATA_ATTR struct timeval sleep_enter_time;
 static bool active_mode;
 static void active_timer_callback(void* arg);
@@ -63,15 +65,35 @@ void app_main()
     esp_timer_handle_t active_timer;
     ESP_ERROR_CHECK(esp_timer_create(&active_timer_args, &active_timer));
 
-    const int active_time_sec = 120;
+    const int active_time_sec = 30;
 
     /* Start the timers */
     ESP_ERROR_CHECK(esp_timer_start_once(active_timer, active_time_sec*uS_TO_S_FACTOR));
     ESP_LOGI(TAG, "Started timer, time since boot: %lld us", esp_timer_get_time());
 
+    /* Configure LED */
+    gpio_config_t io_conf;
+    //disable interrupt
+    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+    //set as output mode
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    //bit mask of the pins that you want to set,e.g.GPIO18/19
+    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
+    //disable pull-down mode
+    io_conf.pull_down_en = 0;
+    //disable pull-up mode
+    io_conf.pull_up_en = 0;
+    //configure GPIO with the given settings
+    gpio_config(&io_conf);
 
+    int led_blinks =3;
     /* Blink LED */
-
+    for(int i = 0; i<led_blinks;i++){
+        gpio_set_level(GPIO_OUTPUT_LED, 1);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+        gpio_set_level(GPIO_OUTPUT_LED, 0);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
     /* Turn on LED */
 
     /* Start Wifi */
@@ -95,7 +117,7 @@ void app_main()
     /* Shutdown  */
     rtc_gpio_isolate(GPIO_NUM_12); //turn off GPIO12 to minimize current consumption
 
-    const int wakeup_time_sec = 60;
+    const int wakeup_time_sec = 20;
     printf("Enabling timer wakeup, %ds\n", wakeup_time_sec);
     esp_sleep_enable_timer_wakeup(wakeup_time_sec * uS_TO_S_FACTOR);
     
@@ -105,7 +127,7 @@ void app_main()
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     printf("Sleeping now.\n");
-
+    gettimeofday(&sleep_enter_time, NULL);
     esp_deep_sleep_start();
 
 }
