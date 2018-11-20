@@ -16,9 +16,9 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include <esp_http_server.h>
-
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "nvs_driver.h"
 
 /* The examples use WiFi configuration that you can set via 'make menuconfig'.
 
@@ -28,55 +28,18 @@
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
-
 static const char *TAG = "wifi softAP";
 
 
 /* An HTTP GET handler */
-esp_err_t hello_get_handler(httpd_req_t *req)
+esp_err_t blink_get_handler(httpd_req_t *req)
 {
     char*  buf;
     size_t buf_len;
 
-    /* Get header value string length and allocate memory for length + 1,
-     * extra byte for null termination */
-    buf_len = httpd_req_get_hdr_value_len(req, "Host") + 1;
-    if (buf_len > 1) {
-        buf = malloc(buf_len);
-        /* Copy null terminated value string into buffer */
-        if (httpd_req_get_hdr_value_str(req, "Host", buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found header => Host: %s", buf);
-        }
-        free(buf);
-    }
-
-    buf_len = httpd_req_get_hdr_value_len(req, "Test-Header-2") + 1;
-    if (buf_len > 1) {
-        buf = malloc(buf_len);
-        if (httpd_req_get_hdr_value_str(req, "Test-Header-2", buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found header => Test-Header-2: %s", buf);
-        }
-        free(buf);
-    }
-
-    int num_blink = 0;
-    buf_len = httpd_req_get_hdr_value_len(req, "num") + 1;
-    if (buf_len > 1) {
-        buf = malloc(buf_len);
-        if (httpd_req_get_hdr_value_str(req, "num", buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found header => num: %s", buf);
-        }
-        //this will convert buf (a char * into an int)
-        char buf_num_stored[buf_len];
-        strcpy(buf_num_stored,buf);
-        num_blink = atoi(buf_num_stored);
-        ESP_LOGI(TAG, "Integer version => num: %d", num_blink);
-
-        free(buf);
-    }
-
     /* Read URL query string length and allocate memory for length + 1,
      * extra byte for null termination */
+    int num_blink =0;
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1) {
         buf = malloc(buf_len);
@@ -101,10 +64,12 @@ esp_err_t hello_get_handler(httpd_req_t *req)
         free(buf);
     }
 
+    //Set the number of blinks in NVS
+    nvs_write(num_blink);
+
     /* Set some custom headers */
     char s[] = {'0' + num_blink, '\0'};
-    httpd_resp_set_hdr(req, "Custom-Header-1", "Custom-Value-1");
-    httpd_resp_set_hdr(req, "Custom-Header-2", s);
+    httpd_resp_set_hdr(req, "Number_of_Blinks", s);
 
     /* Send response with custom headers and body set as the
      * string passed in user context*/
@@ -122,10 +87,10 @@ esp_err_t hello_get_handler(httpd_req_t *req)
 httpd_uri_t hello = {
     .uri       = "/configure_blink",
     .method    = HTTP_GET,
-    .handler   = hello_get_handler,
+    .handler   = blink_get_handler,
     /* Let's pass response string in user
      * context to demonstrate it's usage */
-    .user_ctx  = "Hello World!"
+    .user_ctx  = "Tell me how many times to blink!"
 };
 
 httpd_handle_t start_webserver(void)
@@ -177,16 +142,6 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 
         break;
 
-    case SYSTEM_EVENT_STA_GOT_IP:
-        ESP_LOGI(TAG, "SYSTEM_EVENT_STA_GOT_IP");
-        ESP_LOGI(TAG, "Got IP: '%s'",
-                ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
-
-        /* Start the web server */
-        if (*server == NULL) {
-            *server = start_webserver();
-        }
-        break;
     default:
         break;
     }

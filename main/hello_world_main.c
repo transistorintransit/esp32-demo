@@ -19,12 +19,16 @@
 #include "soc/rtc.h"
 #include "driver/rtc_io.h"
 #include "wifi_driver.h"
+#include "nvs_driver.h"
 
 
 #define GPIO_OUTPUT_LED    2
-#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  3        /* Time ESP32 will go to sleep (in seconds) */
 #define GPIO_OUTPUT_PIN_SEL (1ULL<<GPIO_OUTPUT_LED)
+#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
+#define TIME_TO_SLEEP  20        /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_WAKE   120
+
+
 static RTC_DATA_ATTR struct timeval sleep_enter_time;
 static bool active_mode;
 static void active_timer_callback(void* arg);
@@ -66,10 +70,9 @@ void app_main()
     esp_timer_handle_t active_timer;
     ESP_ERROR_CHECK(esp_timer_create(&active_timer_args, &active_timer));
 
-    const int active_time_sec = 240;
 
     /* Start the timers */
-    ESP_ERROR_CHECK(esp_timer_start_once(active_timer, active_time_sec*uS_TO_S_FACTOR));
+    ESP_ERROR_CHECK(esp_timer_start_once(active_timer, TIME_TO_WAKE*uS_TO_S_FACTOR));
     ESP_LOGI(TAG, "Started timer, time since boot: %lld us", esp_timer_get_time());
 
     /* Configure LED */
@@ -87,7 +90,11 @@ void app_main()
     //configure GPIO with the given settings
     gpio_config(&io_conf);
 
-    int led_blinks =3;
+    /* Find number of blinks from the Nonvolatile Storage (NVS) */
+    nvs_init();
+    int led_blinks =nvs_read();
+    ESP_LOGI(TAG,"stored_value: %i", nvs_read());
+
     /* Blink LED */
     for(int i = 0; i<led_blinks;i++){
         gpio_set_level(GPIO_OUTPUT_LED, 1);
@@ -100,9 +107,8 @@ void app_main()
 
     /* Start Wifi */
     wifi_startup();
-    /* Loop and wait for GET Requests on '/configure_blink' */
-    //look for the 'num' url request header
 
+    /*Loop until timer goes off */
     active_mode = true;
     while(active_mode){
 
@@ -111,17 +117,14 @@ void app_main()
 
     }
 
-
-
     /* Turn off LED */
-
+    gpio_set_level(GPIO_OUTPUT_LED, 0);
 
     /* Shutdown  */
     rtc_gpio_isolate(GPIO_NUM_12); //turn off GPIO12 to minimize current consumption
 
-    const int wakeup_time_sec = 20;
-    printf("Enabling timer wakeup, %ds\n", wakeup_time_sec);
-    esp_sleep_enable_timer_wakeup(wakeup_time_sec * uS_TO_S_FACTOR);
+    printf("Enabling timer wakeup, %ds\n", TIME_TO_SLEEP);
+    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
     
 
     for (int i = 10; i >= 0; i--) {
