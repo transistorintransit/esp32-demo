@@ -66,7 +66,7 @@ void app_main()
     esp_timer_handle_t active_timer;
     ESP_ERROR_CHECK(esp_timer_create(&active_timer_args, &active_timer));
 
-    const int active_time_sec = 30;
+    const int active_time_sec = 240;
 
     /* Start the timers */
     ESP_ERROR_CHECK(esp_timer_start_once(active_timer, active_time_sec*uS_TO_S_FACTOR));
