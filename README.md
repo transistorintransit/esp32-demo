@@ -1,5 +1,3 @@
-# Hello World Example
+# ESP32 Demo Project
 
-Starts a FreeRTOS task to print "Hello World"
-
-See the README.md file in the upper level 'examples' directory for more information about examples.
+Demonstration of the ESP32 device that utilizes wifi, sleep mode, data storage, and LEDs.

@@ -18,6 +18,7 @@
 #include "freertos/task.h"
 #include "soc/rtc.h"
 #include "driver/rtc_io.h"
+#include "wifi_driver.h"
 
 
 #define GPIO_OUTPUT_LED    2
@@ -95,9 +96,10 @@ void app_main()
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
     /* Turn on LED */
+    gpio_set_level(GPIO_OUTPUT_LED, 1);
 
     /* Start Wifi */
-
+    wifi_startup();
     /* Loop and wait for GET Requests on '/configure_blink' */
     //look for the 'num' url request header
 
