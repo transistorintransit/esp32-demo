@@ -109,11 +109,12 @@ void app_main()
 
     printf("Enabling timer wakeup, %ds\n", TIME_TO_SLEEP);
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-    
-    for (int i = 10; i >= 0; i--) {
-        printf("Sleeping in %d seconds...\n", i);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
+
+    //Comment this back in if you want a countdown to start before shutdown    
+    // for (int i = 10; i >= 0; i--) {
+    //     printf("Sleeping in %d seconds...\n", i);
+    //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // }
     printf("Sleeping now.\n");
     gettimeofday(&sleep_enter_time, NULL);
     esp_deep_sleep_start();
